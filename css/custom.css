@@ -231,5 +231,13 @@ p.st{
     margin-right: 50px;
 }
 
+.full_width{
+    width: 100%;
+}
+
+.name_field{
+    padding-bottom: 10px;
+}
+
 
 
