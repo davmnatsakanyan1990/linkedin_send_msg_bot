@@ -1,10 +1,3 @@
-if(getCookie('data')){
-    var data = JSON.parse(getCookie('data'));
-}
-else{
-    var data = [];
-}
-
 if(getCookie('ajaxIndex')){
    var  ajaxIndex = getCookie('ajaxIndex')
 }
@@ -21,17 +14,56 @@ else{
 
 var name;
 var text;
+var data = [];
 
 
 
 function goToSendMessage() {
 
     // get stored urls
-    var d = JSON.parse(getCookie('data'));
+    //var d = JSON.parse(getCookie('data'));
 
+    data = JSON.parse(getCookie('data'));
+
+    if(getCookie('ajaxIndex')){
+        var  ajaxIndex = getCookie('ajaxIndex')
+    }
+    else{
+        var ajaxIndex = 0;
+    }
     //go to send message page
     if(ajaxIndex < data.length) {
-        window.location = d[ajaxIndex ]+'&start';
+
+        $.ajax({
+            url: 'https://www.linkedin.com/messaging/conversationsView?keyword='+data[ajaxIndex].name,
+            type: 'get',
+            success: function(response){
+                if(response.conversationsBefore.length == 0){
+                    window.location = data[ajaxIndex].url+'&start';
+                }
+                else{
+                    var requesting_url = data[ajaxIndex].url;
+                    var requesting_id = (((((requesting_url.split('?'))[1]).split('&'))[0]).split('='))[1];
+                    var is_exist = false;
+                    $.each(response.conversationsBefore, function(index, value){
+                        if(value.participants[0].id == requesting_id){
+                            is_exist = true;
+                        }
+                    });
+
+                    if(! is_exist){
+                        window.location = data[ajaxIndex].url+'&start';
+                    }
+                    else{
+                        ajaxIndex++;
+                        setCookie('ajaxIndex', ajaxIndex, 3600);
+                        goToSendMessage();
+                    }
+                }
+            }
+        });
+
+       // window.location = d[ajaxIndex ]+'&start';
     }
     else{
         if(getCookie('next_page') == 'yes') {
@@ -48,14 +80,19 @@ function goToSendMessage() {
 
 function create_visitable_urls(){
 
-     objectArr = $('#results').find('.people .srp-actions.blue-button > a');
+    objectArr = $('#results').find('.people');
+
     $.each(objectArr, function(index, value){
-        if((value.href.split('/')).indexOf('messaging') != -1){
-            data.push(value.href);
+        var link = ($(value).find('.srp-actions.blue-button>a'))[0].href;
+        var user_name = ($(value).find('.bd .title'))[0].innerText;
+
+        if((link.split('/')).indexOf('messaging') != -1){
+            data.push({'name' : user_name, 'url': link});
         }
     });
 
     setCookie('data', JSON.stringify(data), 3600);
+
 }
 
 function add_cancel_btn(){
@@ -126,6 +163,13 @@ function show_extension(){
         text = $('.ext_content .cont_left textarea[name="text"]').val();
 
         clearCookie();
+
+        if(getCookie('ajaxIndex')){
+            var  ajaxIndex = getCookie('ajaxIndex')
+        }
+        else{
+            var ajaxIndex = 0;
+        }
 
         setCookie('name', name, 3600);
         setCookie('text', text, 3600);
@@ -249,8 +293,10 @@ $(document).ready(function(){
             else{
 
                 // started, in next page
-                create_visitable_urls();
+                data = [];
 
+                create_visitable_urls();
+                deleteCookie('ajaxIndex');
                 goToSendMessage();
             }
         }
@@ -259,25 +305,7 @@ $(document).ready(function(){
     // send message, if you are in sending message page, extension is ON
     if((url_arr_1.indexOf('messaging') == 3 && (url_arr_2.indexOf('start') != -1))){
 
-        var user = $('#thread-list li.thread-item.new-thread .header .name')[0].innerText;
-
-        var conversations = $('#thread-list li.thread-item.addable .header .name');
-
-        var is_exist = false;
-        for(var i= 0; i < conversations.length; i++){
-            if(conversations[i].innerText == user){
-                is_exist = true;
-            }
-        }
-
-        if(! is_exist){
-            sendMessage();
-        }
-        else{
-            ajaxIndex++;
-            setCookie('ajaxIndex', ajaxIndex, 3600);
-            goToSendMessage();
-        }
+        sendMessage();
 
     }
 
